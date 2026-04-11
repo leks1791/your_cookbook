@@ -207,6 +207,7 @@ async function handleSubmit() {
       difficulty: form.difficulty || null,
       cuisine: form.cuisine || null,
       notes: form.notes,
+      category_ids: form.category_ids,
     }
     
     if (isEdit.value) {
