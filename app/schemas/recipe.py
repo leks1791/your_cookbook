@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class RecipeIngredient(BaseModel):
@@ -28,6 +28,9 @@ class RecipeCreate(BaseModel):
     difficulty: str | None = None  # easy, medium, hard
     cuisine: str | None = None
     notes: str | None = None
+    category_ids: list[int] | None = Field(
+        default=None, description="ID категорий для рецепта"
+    )
 
 
 class RecipeUpdate(BaseModel):
@@ -43,6 +46,7 @@ class RecipeUpdate(BaseModel):
     difficulty: str | None = None
     cuisine: str | None = None
     notes: str | None = None
+    category_ids: list[int] | None = Field(None, description="ID категорий для рецепта")
 
 
 class RecipeResponse(BaseModel):
@@ -64,6 +68,15 @@ class RecipeResponse(BaseModel):
     user_id: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    categories: list[dict] | None = None  # Список категорий с id и name
+
+    @field_serializer("categories")
+    def serialize_categories(self, categories):
+        if categories is None:
+            return []
+        return [
+            {"id": cat.id, "name": cat.name, "color": cat.color} for cat in categories
+        ]
 
 
 class PaginatedRecipeResponse(BaseModel):

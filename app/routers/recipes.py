@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
+from app.models.category import Category
 from app.models.recipe import Recipe
 from app.models.user import User
 from app.schemas.recipe import (
@@ -29,13 +30,35 @@ def get_user_recipe(recipe_id: int, db: Session, current_user: User) -> Recipe:
     return recipe
 
 
+def validate_category_ids(db: Session, category_ids: list[int]) -> list[Category]:
+    """Валидация и получение категорий по ID."""
+    if not category_ids:
+        return []
+
+    categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
+
+    if len(categories) != len(category_ids):
+        missing = set(category_ids) - {cat.id for cat in categories}
+        raise HTTPException(status_code=400, detail=f"Categories not found: {missing}")
+
+    return categories
+
+
 @router.post("/", response_model=RecipeResponse, status_code=201)
 def create_recipe(
     recipe: RecipeCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    db_recipe = Recipe(**recipe.model_dump(), user_id=current_user.id)
+    # Валидация категорий
+    category_ids = recipe.category_ids or []
+    categories = validate_category_ids(db, category_ids)
+
+    # Создаём рецепт без categories (они будут добавлены отдельно)
+    recipe_data = recipe.model_dump(exclude={"category_ids"})
+    db_recipe = Recipe(**recipe_data, user_id=current_user.id)
+    db_recipe.categories = categories
+
     db.add(db_recipe)
     db.commit()
     db.refresh(db_recipe)
@@ -80,9 +103,23 @@ def update_recipe(
 ):
     recipe = get_user_recipe(recipe_id, db, current_user)
 
-    update_data = updated_recipe.model_dump(exclude_unset=True)
+    # Обновляем базовые поля (исключая category_ids)
+    update_data = updated_recipe.model_dump(
+        exclude_unset=True, exclude={"category_ids"}
+    )
     for field, value in update_data.items():
         setattr(recipe, field, value)
+
+    # Обновляем категории если переданы
+    if "category_ids" in updated_recipe.model_dump(exclude_unset=True):
+        category_ids = updated_recipe.category_ids
+        # Если category_ids None или пустой список - очищаем категории
+        if category_ids is None or category_ids == []:
+            recipe.categories = []
+        else:
+            # Валидируем и устанавливаем новые категории
+            categories = validate_category_ids(db, category_ids)
+            recipe.categories = categories
 
     db.commit()
     db.refresh(recipe)
