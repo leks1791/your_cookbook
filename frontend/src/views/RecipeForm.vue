@@ -197,8 +197,15 @@ async function handleSubmit() {
   error.value = ''
   
   try {
+    // Валидация title
+    if (!form.title || form.title.trim() === '') {
+      error.value = 'Название рецепта обязательно'
+      loading.value = false
+      return
+    }
+    
     const payload = {
-      title: form.title,
+      title: form.title.trim(),
       description: form.description,
       ingredients: form.ingredients,
       steps: form.steps,
@@ -210,8 +217,10 @@ async function handleSubmit() {
       difficulty: form.difficulty || null,
       cuisine: form.cuisine || null,
       notes: form.notes,
-      category_ids: form.category_ids,
+      category_ids: form.category_ids || [],
     }
+    
+    console.log('Sending payload:', payload)
     
     if (isEdit.value) {
       await recipeStore.updateRecipe(recipeId.value, payload)
@@ -220,7 +229,8 @@ async function handleSubmit() {
     }
     router.push('/recipes')
   } catch (e) {
-    error.value = e.response?.data?.detail || 'Ошибка сохранения'
+    console.error('Save error:', e)
+    error.value = e.response?.data?.detail || e.message || 'Ошибка сохранения'
   } finally {
     loading.value = false
   }

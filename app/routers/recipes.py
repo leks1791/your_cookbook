@@ -50,19 +50,23 @@ def create_recipe(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Валидация категорий
-    category_ids = recipe.category_ids or []
-    categories = validate_category_ids(db, category_ids)
+    try:
+        # Валидация категорий
+        category_ids = recipe.category_ids or []
+        categories = validate_category_ids(db, category_ids)
 
-    # Создаём рецепт без categories (они будут добавлены отдельно)
-    recipe_data = recipe.model_dump(exclude={"category_ids"})
-    db_recipe = Recipe(**recipe_data, user_id=current_user.id)
-    db_recipe.categories = categories
+        # Создаём рецепт без categories (они будут добавлены отдельно)
+        recipe_data = recipe.model_dump(exclude={"category_ids"})
+        db_recipe = Recipe(**recipe_data, user_id=current_user.id)
+        db_recipe.categories = categories
 
-    db.add(db_recipe)
-    db.commit()
-    db.refresh(db_recipe)
-    return db_recipe
+        db.add(db_recipe)
+        db.commit()
+        db.refresh(db_recipe)
+        return db_recipe
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/", response_model=PaginatedRecipeResponse)
