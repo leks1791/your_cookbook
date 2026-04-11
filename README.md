@@ -113,47 +113,6 @@ make test
 
 ---
 
-## 💻 Локальная установка
-
-```bash
-# Клонировать репозиторий
-git clone <repository-url>
-cd cookbook-ai
-
-# Создать виртуальное окружение
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# или: venv\Scripts\activate  # Windows
-
-# Установить зависимости
-pip install -r requirements.txt
-
-# Настроить переменные окружения
-cp .env.example .env
-# Отредактировать .env при необходимости
-
-# Применить миграции базы данных
-alembic upgrade head
-
-# Запустить сервер
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Установка Frontend
-
-```bash
-cd frontend
-
-# Установить зависимости
-npm install
-
-# Запустить в режиме разработки
-npm run dev
-
-# Или собрать для продакшена
-npm run build
-npm run preview
-```
 
 ### Доступ к приложению
 
