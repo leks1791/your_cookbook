@@ -4,7 +4,7 @@
     
     <div class="flex flex-wrap gap-2 mb-3">
       <span
-        v-for="tag in tags"
+        v-for="tag in localTags"
         :key="tag"
         class="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm"
       >
@@ -20,7 +20,7 @@
         </button>
       </span>
       
-      <div v-if="!showInput" class="text-gray-400 text-sm italic">Нажмите + чтобы добавить</div>
+      <div v-if="!showInput && localTags.length === 0" class="text-gray-400 text-sm italic">Нажмите + чтобы добавить</div>
     </div>
     
     <div v-if="showInput" class="flex gap-2 mb-3">
@@ -69,7 +69,7 @@
           :key="suggestion"
           type="button"
           @click="addSuggestion(suggestion)"
-          :disabled="tags.includes(suggestion)"
+          :disabled="localTags.includes(suggestion)"
           class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs hover:bg-orange-100 hover:text-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ suggestion }}
@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -91,7 +91,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const tags = ref([...props.modelValue])
+const localTags = [...(props.modelValue || [])]
 const newTag = ref('')
 const showInput = ref(false)
 const inputRef = ref(null)
@@ -102,13 +102,14 @@ const suggestions = [
   'Выпечка', 'Напитки', 'Закуски', 'Горячее'
 ]
 
-watch(() => props.modelValue, (newVal) => {
-  tags.value = [...(newVal || [])]
+onMounted(() => {
+  // Инициализируем localTags из props только один раз
+  if (props.modelValue && Array.isArray(props.modelValue)) {
+    for (let i = 0; i < props.modelValue.length; i++) {
+      localTags[i] = props.modelValue[i]
+    }
+  }
 })
-
-watch(tags, (newVal) => {
-  emit('update:modelValue', newVal)
-}, { deep: true })
 
 function startAddTag() {
   showInput.value = true
@@ -119,21 +120,27 @@ function startAddTag() {
 
 function addTag() {
   const tag = newTag.value.trim()
-  if (tag && !tags.value.includes(tag)) {
-    tags.value.push(tag)
+  if (tag && !localTags.includes(tag)) {
+    localTags.push(tag)
+    emit('update:modelValue', [...localTags])
   }
   newTag.value = ''
   cancelAdd()
 }
 
 function addSuggestion(suggestion) {
-  if (!tags.value.includes(suggestion)) {
-    tags.value.push(suggestion)
+  if (!localTags.includes(suggestion)) {
+    localTags.push(suggestion)
+    emit('update:modelValue', [...localTags])
   }
 }
 
 function removeTag(tag) {
-  tags.value = tags.value.filter(t => t !== tag)
+  const index = localTags.indexOf(tag)
+  if (index !== -1) {
+    localTags.splice(index, 1)
+    emit('update:modelValue', [...localTags])
+  }
 }
 
 function cancelAdd() {
