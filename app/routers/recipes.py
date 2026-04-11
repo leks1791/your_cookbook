@@ -51,21 +51,34 @@ def create_recipe(
     current_user: User = Depends(get_current_user),
 ):
     try:
+        print(f"Creating recipe for user {current_user.id}")
+        print(f"Recipe data: {recipe.model_dump()}")
+        print(f"Category IDs: {recipe.category_ids}")
+
         # Валидация категорий
         category_ids = recipe.category_ids or []
+        print(f"Validating categories: {category_ids}")
         categories = validate_category_ids(db, category_ids)
+        print(f"Categories found: {[c.id for c in categories]}")
 
         # Создаём рецепт без categories (они будут добавлены отдельно)
         recipe_data = recipe.model_dump(exclude={"category_ids"})
+        print(f"Recipe data without categories: {recipe_data}")
+
         db_recipe = Recipe(**recipe_data, user_id=current_user.id)
         db_recipe.categories = categories
+        print(f"Setting categories: {categories}")
 
         db.add(db_recipe)
         db.commit()
         db.refresh(db_recipe)
+        print(f"Recipe created: {db_recipe.id}")
         return db_recipe
     except Exception as e:
         db.rollback()
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
