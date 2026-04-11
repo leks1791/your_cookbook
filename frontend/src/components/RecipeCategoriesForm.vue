@@ -87,14 +87,17 @@ const categoryStore = useCategoryStore()
 const categories = ref([])
 const loading = ref(true)
 
+// Используем map для получения выбранных категорий вместо filter
 const selectedCategories = computed(() => {
-  return categories.value.filter(cat => props.modelValue.includes(cat.id))
+  if (!props.modelValue || !Array.isArray(props.modelValue)) return []
+  return categoryStore.categories
+    .filter(cat => props.modelValue.includes(cat.id))
 })
 
 onMounted(async () => {
   try {
     await categoryStore.fetchCategories()
-    categories.value = categoryStore.categories
+    categories.value = [...categoryStore.categories]
   } catch (e) {
     console.error('Failed to load categories:', e)
   } finally {
@@ -103,10 +106,16 @@ onMounted(async () => {
 })
 
 function isSelected(categoryId) {
+  if (!props.modelValue || !Array.isArray(props.modelValue)) return false
   return props.modelValue.includes(categoryId)
 }
 
 function toggleCategory(categoryId) {
+  if (!props.modelValue || !Array.isArray(props.modelValue)) {
+    emit('update:modelValue', [categoryId])
+    return
+  }
+  
   const current = [...props.modelValue]
   const index = current.indexOf(categoryId)
   
