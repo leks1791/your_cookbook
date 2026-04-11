@@ -11,6 +11,7 @@ from app.schemas.recipe import (
     PaginatedRecipeResponse,
     RecipeCreate,
     RecipeResponse,
+    RecipeUpdate,
 )
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
@@ -73,15 +74,15 @@ def get_recipe(
 @router.put("/{recipe_id}", response_model=RecipeResponse)
 def update_recipe(
     recipe_id: int,
-    updated_recipe: RecipeCreate,
+    updated_recipe: RecipeUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     recipe = get_user_recipe(recipe_id, db, current_user)
 
-    recipe.title = updated_recipe.title
-    recipe.description = updated_recipe.description
-    recipe.ingredients = updated_recipe.ingredients
+    update_data = updated_recipe.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(recipe, field, value)
 
     db.commit()
     db.refresh(recipe)

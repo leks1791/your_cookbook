@@ -1,7 +1,7 @@
 <template>
   <header class="bg-white shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-      <router-link to="/" class="text-2xl font-bold text-orange-600">CookBook AI</router-link>
+      <router-link to="/" class="text-2xl font-bold text-orange-600">Your CookBook</router-link>
       <div class="flex items-center space-x-4">
         <template v-if="isAuthenticated">
           <div class="text-gray-600 font-medium">Привет, {{ displayName }}!</div>

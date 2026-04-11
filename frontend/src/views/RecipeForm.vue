@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-2xl mx-auto p-6">
+  <div class="max-w-4xl mx-auto p-6">
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
       <h2 class="text-2xl font-bold mb-6 text-gray-800">
         {{ isEdit ? 'Редактировать рецепт' : 'Новый рецепт' }}
@@ -10,14 +10,17 @@
       </div>
       
       <form @submit.prevent="handleSubmit">
-        <div class="mb-4">
-          <label class="block text-gray-700 mb-2 font-medium">Название</label>
-          <input
-            v-model="form.title"
-            type="text"
-            required
-            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div class="md:col-span-2">
+            <label class="block text-gray-700 mb-2 font-medium">Название *</label>
+            <input
+              v-model="form.title"
+              type="text"
+              required
+              placeholder="Например: Домашняя паста карбонара"
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+          </div>
         </div>
         
         <div class="mb-4">
@@ -25,28 +28,93 @@
           <textarea
             v-model="form.description"
             rows="3"
+            placeholder="Краткое описание блюда..."
             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
           ></textarea>
         </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-gray-700 mb-2 font-medium">Время подготовки (мин)</label>
+            <input
+              v-model.number="form.prep_time"
+              type="number"
+              min="0"
+              placeholder="15"
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-medium">Время приготовления (мин)</label>
+            <input
+              v-model.number="form.cook_time"
+              type="number"
+              min="0"
+              placeholder="30"
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="block text-gray-700 mb-2 font-medium">Порции</label>
+            <input
+              v-model.number="form.servings"
+              type="number"
+              min="1"
+              placeholder="4"
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-medium">Сложность</label>
+            <select
+              v-model="form.difficulty"
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              <option value="">Выберите</option>
+              <option value="easy">Легко</option>
+              <option value="medium">Средне</option>
+              <option value="hard">Сложно</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-medium">Кухня</label>
+            <input
+              v-model="form.cuisine"
+              type="text"
+              placeholder="Итальянская, Японская..."
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <RecipeTagsForm v-model="form.tags" />
+        
+        <RecipeIngredientsForm v-model="form.ingredients" />
+        
+        <RecipeStepsForm v-model="form.steps" />
+        
+        <RecipePhotosForm v-model="form.photos" />
         
         <div class="mb-6">
-          <label class="block text-gray-700 mb-2 font-medium">Ингредиенты</label>
+          <label class="block text-gray-700 mb-2 font-medium">Заметки</label>
           <textarea
-            v-model="form.ingredients"
-            required
-            rows="4"
-            placeholder="Перечислите ингредиенты через запятую"
+            v-model="form.notes"
+            rows="3"
+            placeholder="Дополнительные заметки, советы по подаче..."
             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
           ></textarea>
         </div>
         
-        <div class="flex space-x-4">
+        <div class="flex gap-4">
           <button
             type="submit"
             :disabled="loading"
             class="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50"
           >
-            {{ loading ? 'Сохранение...' : 'Сохранить' }}
+            {{ loading ? 'Сохранение...' : 'Сохранить рецепт' }}
           </button>
           <router-link
             to="/recipes"
@@ -64,6 +132,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRecipeStore } from '../stores/recipes'
+import RecipeTagsForm from '../components/RecipeTagsForm.vue'
+import RecipeIngredientsForm from '../components/RecipeIngredientsForm.vue'
+import RecipeStepsForm from '../components/RecipeStepsForm.vue'
+import RecipePhotosForm from '../components/RecipePhotosForm.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -75,7 +147,16 @@ const recipeId = computed(() => route.params.id)
 const form = reactive({
   title: '',
   description: '',
-  ingredients: '',
+  ingredients: JSON.stringify([{ amount: '', unit: '', name: '' }]),
+  steps: JSON.stringify([{ order: 0, description: '', timer_seconds: null }]),
+  tags: [],
+  photos: [],
+  prep_time: null,
+  cook_time: null,
+  servings: null,
+  difficulty: '',
+  cuisine: '',
+  notes: '',
 })
 
 const loading = ref(false)
@@ -88,6 +169,15 @@ onMounted(async () => {
       form.title = recipe.title
       form.description = recipe.description || ''
       form.ingredients = recipe.ingredients
+      form.steps = recipe.steps || JSON.stringify([])
+      form.tags = recipe.tags || []
+      form.photos = recipe.photos || []
+      form.prep_time = recipe.prep_time
+      form.cook_time = recipe.cook_time
+      form.servings = recipe.servings
+      form.difficulty = recipe.difficulty || ''
+      form.cuisine = recipe.cuisine || ''
+      form.notes = recipe.notes || ''
     } catch (e) {
       error.value = 'Рецепт не найден'
     }
@@ -99,10 +189,25 @@ async function handleSubmit() {
   error.value = ''
   
   try {
+    const payload = {
+      title: form.title,
+      description: form.description,
+      ingredients: form.ingredients,
+      steps: form.steps,
+      tags: form.tags,
+      photos: form.photos,
+      prep_time: form.prep_time,
+      cook_time: form.cook_time,
+      servings: form.servings,
+      difficulty: form.difficulty || null,
+      cuisine: form.cuisine || null,
+      notes: form.notes,
+    }
+    
     if (isEdit.value) {
-      await recipeStore.updateRecipe(recipeId.value, form)
+      await recipeStore.updateRecipe(recipeId.value, payload)
     } else {
-      await recipeStore.createRecipe(form)
+      await recipeStore.createRecipe(payload)
     }
     router.push('/recipes')
   } catch (e) {
