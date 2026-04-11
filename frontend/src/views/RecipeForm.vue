@@ -170,19 +170,22 @@ onMounted(async () => {
   if (isEdit.value) {
     try {
       const recipe = await recipeStore.fetchRecipe(recipeId.value)
-      form.title = recipe.title
-      form.description = recipe.description || ''
-      form.ingredients = recipe.ingredients
-      form.steps = recipe.steps || JSON.stringify([])
-      form.tags = recipe.tags || []
-      form.photos = recipe.photos || []
-      form.prep_time = recipe.prep_time
-      form.cook_time = recipe.cook_time
-      form.servings = recipe.servings
-      form.difficulty = recipe.difficulty || ''
-      form.cuisine = recipe.cuisine || ''
-      form.notes = recipe.notes || ''
-      form.category_ids = recipe.categories ? recipe.categories.map(c => c.id) : []
+      // Используем Object.assign для предотвращения реактивных циклов
+      Object.assign(form, {
+        title: recipe.title,
+        description: recipe.description || '',
+        ingredients: recipe.ingredients,
+        steps: recipe.steps || JSON.stringify([]),
+        tags: recipe.tags || [],
+        photos: recipe.photos || [],
+        prep_time: recipe.prep_time,
+        cook_time: recipe.cook_time,
+        servings: recipe.servings,
+        difficulty: recipe.difficulty || '',
+        cuisine: recipe.cuisine || '',
+        notes: recipe.notes || '',
+        category_ids: recipe.categories ? recipe.categories.map(c => c.id) : [],
+      })
     } catch (e) {
       error.value = 'Рецепт не найден'
     }

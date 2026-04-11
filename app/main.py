@@ -12,6 +12,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+
 class NormalizePathMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         path = request.scope.get("path", "")
@@ -22,6 +23,7 @@ class NormalizePathMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
+
 app.add_middleware(NormalizePathMiddleware)
 
 app.add_middleware(
@@ -30,6 +32,9 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "*",
     ],
     allow_credentials=True,
     allow_methods=["*"],

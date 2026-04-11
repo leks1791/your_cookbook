@@ -4,7 +4,7 @@
     
     <div v-if="loading" class="text-gray-500 text-sm">Загрузка категорий...</div>
     
-    <div v-else-if="categories.length === 0" class="text-gray-400 text-sm italic mb-3">
+    <div v-else-if="localCategories.length === 0" class="text-gray-400 text-sm italic mb-3">
       Категорий нет. 
       <router-link to="/categories" class="text-orange-500 hover:underline">Создать категорию</router-link>
     </div>
@@ -12,7 +12,7 @@
     <div v-else class="space-y-3">
       <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
         <label
-          v-for="category in categories"
+          v-for="category in localCategories"
           :key="category.id"
           class="relative flex items-center p-3 border-2 rounded-xl cursor-pointer transition hover:shadow-sm"
           :class="isSelected(category.id) ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white'"
@@ -44,19 +44,19 @@
         </label>
       </div>
       
-      <div v-if="selectedCategories.length > 0" class="mt-3">
-        <p class="text-xs text-gray-500 mb-2">Выбрано категорий: {{ selectedCategories.length }}</p>
+      <div v-if="selectedIds.length > 0" class="mt-3">
+        <p class="text-xs text-gray-500 mb-2">Выбрано категорий: {{ selectedIds.length }}</p>
         <div class="flex flex-wrap gap-2">
           <span
-            v-for="cat in selectedCategories"
-            :key="cat.id"
+            v-for="catId in selectedIds"
+            :key="catId"
             class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm"
-            :style="{ backgroundColor: cat.color + '20', color: cat.color }"
+            :style="{ backgroundColor: getCategoryColor(catId), color: getCategoryColor(catId) }"
           >
-            {{ cat.name }}
+            {{ getCategoryName(catId) }}
             <button
               type="button"
-              @click="toggleCategory(cat.id)"
+              @click="toggleCategory(catId)"
               class="hover:opacity-70"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -71,7 +71,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useCategoryStore } from '../stores/categories'
 
 const props = defineProps({
@@ -84,20 +84,16 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const categoryStore = useCategoryStore()
-const categories = ref([])
+const localCategories = ref([])
 const loading = ref(true)
 
-// Используем map для получения выбранных категорий вместо filter
-const selectedCategories = computed(() => {
-  if (!props.modelValue || !Array.isArray(props.modelValue)) return []
-  return categoryStore.categories
-    .filter(cat => props.modelValue.includes(cat.id))
-})
+// Локальная копия selectedIds для избежания циклов
+const selectedIds = [...(props.modelValue || [])]
 
 onMounted(async () => {
   try {
     await categoryStore.fetchCategories()
-    categories.value = [...categoryStore.categories]
+    localCategories.value = [...categoryStore.categories]
   } catch (e) {
     console.error('Failed to load categories:', e)
   } finally {
@@ -106,25 +102,29 @@ onMounted(async () => {
 })
 
 function isSelected(categoryId) {
-  if (!props.modelValue || !Array.isArray(props.modelValue)) return false
-  return props.modelValue.includes(categoryId)
+  return selectedIds.includes(categoryId)
+}
+
+function getCategoryName(id) {
+  const cat = localCategories.value.find(c => c.id === id)
+  return cat ? cat.name : ''
+}
+
+function getCategoryColor(id) {
+  const cat = localCategories.value.find(c => c.id === id)
+  return cat ? cat.color : '#gray'
 }
 
 function toggleCategory(categoryId) {
-  if (!props.modelValue || !Array.isArray(props.modelValue)) {
-    emit('update:modelValue', [categoryId])
-    return
-  }
-  
-  const current = [...props.modelValue]
-  const index = current.indexOf(categoryId)
+  const index = selectedIds.indexOf(categoryId)
   
   if (index === -1) {
-    current.push(categoryId)
+    selectedIds.push(categoryId)
   } else {
-    current.splice(index, 1)
+    selectedIds.splice(index, 1)
   }
   
-  emit('update:modelValue', current)
+  // Эмитим копию массива
+  emit('update:modelValue', [...selectedIds])
 }
 </script>
