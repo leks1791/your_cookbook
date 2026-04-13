@@ -4,8 +4,8 @@
     
     <div class="space-y-4 mb-4">
       <div
-        v-for="(step, index) in steps"
-        :key="step.id"
+        v-for="(step, index) in (Array.isArray(steps) ? steps : [])"
+        :key="index"
         class="flex gap-3 items-start p-4 bg-gray-50 rounded-xl group"
         draggable="true"
         @dragstart="handleDragStart(index)"
@@ -92,22 +92,39 @@ const steps = ref([
 ])
 
 let draggedIndex = null
+let isUpdatingFromParent = false
 
-watch(steps, (newVal) => {
-  emit('update:modelValue', JSON.stringify(newVal.map(s => ({
-    order: steps.value.indexOf(s),
+// Функция для обновления order при изменении шагов
+function updateOrder() {
+  if (isUpdatingFromParent) return
+  const currentSteps = steps.value
+  emit('update:modelValue', JSON.stringify(currentSteps.map((s, index) => ({
+    order: index,
     description: s.description,
     timer_seconds: s.timer_seconds
   }))))
+}
+
+// Отслеживаем изменения с debounce
+let debounceTimer = null
+watch(steps, (newVal) => {
+  if (isUpdatingFromParent) return
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    updateOrder()
+  }, 10)
 }, { deep: true })
 
 function addStep() {
-  steps.value.push({ id: Date.now(), description: '', timer_seconds: null })
+  steps.value = [
+    ...steps.value,
+    { id: Date.now(), description: '', timer_seconds: null }
+  ]
 }
 
 function removeStep(index) {
   if (steps.value.length > 1) {
-    steps.value.splice(index, 1)
+    steps.value = steps.value.filter((_, i) => i !== index)
   }
 }
 
@@ -122,9 +139,11 @@ function handleDragOver(e) {
 function handleDrop(dropIndex) {
   if (draggedIndex === null || draggedIndex === dropIndex) return
   
-  const draggedStep = steps.value[draggedIndex]
-  steps.value.splice(draggedIndex, 1)
-  steps.value.splice(dropIndex, 0, draggedStep)
+  const currentSteps = [...steps.value]
+  const draggedStep = currentSteps[draggedIndex]
+  currentSteps.splice(draggedIndex, 1)
+  currentSteps.splice(dropIndex, 0, draggedStep)
+  steps.value = currentSteps
   draggedIndex = null
 }
 
@@ -134,13 +153,23 @@ function handleDragEnd() {
 
 // Load from parent on mount
 watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
+  if (newVal && !isUpdatingFromParent) {
     try {
       const parsed = JSON.parse(newVal)
-      if (Array.isArray(parsed)) {
-        steps.value = parsed.length > 0 
-          ? parsed.map(s => ({ id: Date.now() + Math.random(), ...s }))
-          : [{ id: Date.now(), description: '', timer_seconds: null }]
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Проверка, действительно ли данные изменились
+        const currentJson = JSON.stringify(steps.value)
+        const newJson = JSON.stringify(parsed)
+        if (currentJson !== newJson) {
+          isUpdatingFromParent = true
+          steps.value = parsed.map(s => ({ 
+            id: Date.now() + Math.random(), 
+            ...s 
+          }))
+          setTimeout(() => {
+            isUpdatingFromParent = false
+          }, 0)
+        }
       }
     } catch (e) {
       // Not JSON, ignore

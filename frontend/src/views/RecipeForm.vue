@@ -90,8 +90,6 @@
           </div>
         </div>
 
-        <RecipeCategoriesForm v-model="form.category_ids" />
-        
         <RecipeTagsForm v-model="form.tags" />
         
         <RecipeIngredientsForm v-model="form.ingredients" />
@@ -138,7 +136,6 @@ import RecipeTagsForm from '../components/RecipeTagsForm.vue'
 import RecipeIngredientsForm from '../components/RecipeIngredientsForm.vue'
 import RecipeStepsForm from '../components/RecipeStepsForm.vue'
 import RecipePhotosForm from '../components/RecipePhotosForm.vue'
-import RecipeCategoriesForm from '../components/RecipeCategoriesForm.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -160,7 +157,6 @@ const form = reactive({
   difficulty: '',
   cuisine: '',
   notes: '',
-  category_ids: [],
 })
 
 const loading = ref(false)
@@ -184,7 +180,6 @@ onMounted(async () => {
         difficulty: recipe.difficulty || '',
         cuisine: recipe.cuisine || '',
         notes: recipe.notes || '',
-        category_ids: recipe.categories ? recipe.categories.map(c => c.id) : [],
       })
     } catch (e) {
       error.value = 'Рецепт не найден'
@@ -217,7 +212,6 @@ async function handleSubmit() {
       difficulty: form.difficulty || null,
       cuisine: form.cuisine || null,
       notes: form.notes,
-      category_ids: form.category_ids || [],
     }
     
     console.log('Sending payload:', payload)

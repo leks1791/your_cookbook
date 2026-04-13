@@ -1,6 +1,7 @@
 from datetime import datetime
+import json
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 
 class RecipeIngredient(BaseModel):
@@ -49,6 +50,18 @@ class RecipeUpdate(BaseModel):
     category_ids: list[int] | None = Field(None, description="ID категорий для рецепта")
 
 
+def parse_json_list(value):
+    """Помощник для конвертации JSON строки в список"""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 class RecipeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +82,16 @@ class RecipeResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     categories: list[dict] | None = None  # Список категорий с id и name
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def validate_tags(cls, value):
+        return parse_json_list(value)
+
+    @field_validator("photos", mode="before")
+    @classmethod
+    def validate_photos(cls, value):
+        return parse_json_list(value)
 
     @field_serializer("categories")
     def serialize_categories(self, categories):

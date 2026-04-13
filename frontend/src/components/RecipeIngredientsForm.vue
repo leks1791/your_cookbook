@@ -85,8 +85,10 @@ const ingredients = ref([
 ])
 
 const quickInput = ref('')
+let isUpdatingFromParent = false
 
 watch(ingredients, (newVal) => {
+  if (isUpdatingFromParent) return
   emit('update:modelValue', JSON.stringify(newVal))
 }, { deep: true })
 
@@ -121,11 +123,19 @@ function parseQuickInput() {
 
 // Load from parent on mount
 watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
+  if (newVal && !isUpdatingFromParent) {
     try {
       const parsed = JSON.parse(newVal)
       if (Array.isArray(parsed)) {
-        ingredients.value = parsed.length > 0 ? parsed : [{ amount: '', unit: '', name: '' }]
+        const currentJson = JSON.stringify(ingredients.value)
+        const newJson = JSON.stringify(parsed)
+        if (currentJson !== newJson) {
+          isUpdatingFromParent = true
+          ingredients.value = parsed.length > 0 ? parsed : [{ amount: '', unit: '', name: '' }]
+          setTimeout(() => {
+            isUpdatingFromParent = false
+          }, 0)
+        }
       }
     } catch (e) {
       // Not JSON, ignore

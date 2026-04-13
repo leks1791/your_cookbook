@@ -108,17 +108,27 @@ const fileInput = ref(null)
 const dragOver = ref(false)
 
 let draggedIndex = null
+let isUpdatingFromParent = false
 
 watch(() => props.modelValue, (newVal) => {
-  if (newVal && Array.isArray(newVal)) {
-    photos.value = newVal.map(p => ({
-      ...p,
-      isPrimary: p.isPrimary || false
-    }))
+  if (newVal && Array.isArray(newVal) && !isUpdatingFromParent) {
+    const currentJson = JSON.stringify(photos.value)
+    const newJson = JSON.stringify(newVal)
+    if (currentJson !== newJson) {
+      isUpdatingFromParent = true
+      photos.value = newVal.map(p => ({
+        ...p,
+        isPrimary: p.isPrimary || false
+      }))
+      setTimeout(() => {
+        isUpdatingFromParent = false
+      }, 0)
+    }
   }
 }, { immediate: true })
 
 watch(photos, (newVal) => {
+  if (isUpdatingFromParent) return
   emit('update:modelValue', newVal)
 }, { deep: true })
 

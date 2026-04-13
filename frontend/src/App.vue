@@ -44,10 +44,6 @@ watch(
   async (newVal) => {
     if (newVal) {
       await fetchMe()
-      // Notify dashboards to refresh categories after login
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('category_updated'))
-      }
     } else {
       auth.setUsername(null)
     }

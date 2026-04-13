@@ -1,4 +1,4 @@
-<template>
+да<template>
   <div class="mb-6">
     <label class="block text-gray-700 mb-3 font-medium">Теги</label>
     
@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -91,23 +91,18 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const localTags = [...(props.modelValue || [])]
+const localTags = ref([])
 const newTag = ref('')
 const showInput = ref(false)
 const inputRef = ref(null)
+let isUpdatingFromParent = false
 
-const suggestions = [
-  'Завтрак', 'Обед', 'Ужин', 'Десерт', 'Суп', 'Салат',
-  'Мясное', 'Рыбное', 'Вегетарианское', 'Быстро', 'Пп',
-  'Выпечка', 'Напитки', 'Закуски', 'Горячее'
-]
+const suggestions = ref(['Завтрак', 'Обед', 'Ужин', 'Десерт', 'Вегетарианское', 'Без глютена', 'Быстро', 'Здоровое'])
 
 onMounted(() => {
   // Инициализируем localTags из props только один раз
   if (props.modelValue && Array.isArray(props.modelValue)) {
-    for (let i = 0; i < props.modelValue.length; i++) {
-      localTags[i] = props.modelValue[i]
-    }
+    localTags.value = [...props.modelValue]
   }
 })
 
@@ -120,26 +115,26 @@ function startAddTag() {
 
 function addTag() {
   const tag = newTag.value.trim()
-  if (tag && !localTags.includes(tag)) {
-    localTags.push(tag)
-    emit('update:modelValue', [...localTags])
+  if (tag && !localTags.value.includes(tag)) {
+    localTags.value.push(tag)
+    emit('update:modelValue', [...localTags.value])
   }
   newTag.value = ''
   cancelAdd()
 }
 
 function addSuggestion(suggestion) {
-  if (!localTags.includes(suggestion)) {
-    localTags.push(suggestion)
-    emit('update:modelValue', [...localTags])
+  if (!localTags.value.includes(suggestion)) {
+    localTags.value.push(suggestion)
+    emit('update:modelValue', [...localTags.value])
   }
 }
 
 function removeTag(tag) {
-  const index = localTags.indexOf(tag)
+  const index = localTags.value.indexOf(tag)
   if (index !== -1) {
-    localTags.splice(index, 1)
-    emit('update:modelValue', [...localTags])
+    localTags.value.splice(index, 1)
+    emit('update:modelValue', [...localTags.value])
   }
 }
 
@@ -147,4 +142,19 @@ function cancelAdd() {
   showInput.value = false
   newTag.value = ''
 }
+
+// Watch for parent updates
+watch(() => props.modelValue, (newVal) => {
+  if (newVal && Array.isArray(newVal) && !isUpdatingFromParent) {
+    const currentJson = JSON.stringify(localTags.value)
+    const newJson = JSON.stringify(newVal)
+    if (currentJson !== newJson) {
+      isUpdatingFromParent = true
+      localTags.value = [...newVal]
+      setTimeout(() => {
+        isUpdatingFromParent = false
+      }, 0)
+    }
+  }
+}, { immediate: true })
 </script>

@@ -29,12 +29,6 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/categories',
-      name: 'categories',
-      component: () => import('../views/Categories.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
       path: '/recipes',
       name: 'recipes',
       component: () => import('../views/Recipes.vue'),
@@ -56,6 +50,18 @@ const router = createRouter({
       path: '/recipes/:id/edit',
       name: 'recipe-edit',
       component: () => import('../views/RecipeForm.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/tags',
+      name: 'tags',
+      component: () => import('../views/TagsPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/tags/:tag',
+      name: 'recipes-by-tag',
+      component: () => import('../views/RecipesByTag.vue'),
       meta: { requiresAuth: true },
     },
   ],

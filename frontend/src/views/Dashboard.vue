@@ -30,8 +30,8 @@
               </svg>
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Категории</p>
-              <p class="text-2xl font-semibold text-gray-900">{{ stats.totalCategories }}</p>
+              <p class="text-sm font-medium text-gray-500">Теги</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ stats.totalTags }}</p>
             </div>
           </div>
         </div>
@@ -65,13 +65,13 @@
             Добавить рецепт
           </router-link>
           <router-link 
-            to="/categories" 
-            class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition flex items-center"
+            to="/tags" 
+            class="bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition flex items-center"
           >
             <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
             </svg>
-            Управлять категориями
+            Все теги
           </router-link>
           <router-link 
             to="/recipes" 
@@ -85,18 +85,25 @@
         </div>
       </div>
 
-      <!-- Categories on Dashboard -->
+      <!-- Tags on Dashboard -->
       <section class="mb-8">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Ваши категории</h2>
-        <div v-if="categories.length === 0" class="p-4 text-gray-500">У вас ещё нет категорий. Вы можете создать первую категорию в разделе Категории.</div>
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          <div v-for="cat in categories" :key="cat.id" class="flex items-center justify-between gap-3 p-4 rounded-xl border border-gray-200 bg-white">
-            <div class="flex items-center gap-2">
-              <span class="w-5 h-5 rounded-full" :style="{ backgroundColor: cat.color }"></span>
-              <span class="text-lg font-medium text-gray-700">{{ cat.name }}</span>
-            </div>
-            <span class="text-lg font-semibold text-gray-700">{{ cat.recipe_count ?? 0 }}</span>
-          </div>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold text-gray-900">Ваши теги</h2>
+          <router-link to="/tags" class="text-orange-500 hover:text-orange-600 text-sm">Все теги →</router-link>
+        </div>
+        <div v-if="tags.length === 0" class="p-4 text-gray-500">У вас ещё нет тегов. Добавьте теги к своим рецептам.</div>
+        <div v-else class="flex flex-wrap gap-3">
+          <router-link 
+            v-for="tag in tags" 
+            :key="tag.name"
+            :to="`/tags/${encodeURIComponent(tag.name)}`"
+            class="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-full transition border border-orange-200"
+          >
+            <span class="font-medium">{{ tag.name }}</span>
+            <span class="bg-orange-200 text-orange-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+              {{ tag.count }}
+            </span>
+          </router-link>
         </div>
       </section>
 
@@ -122,23 +129,69 @@
           <div 
             v-for="recipe in recentRecipes" 
             :key="recipe.id" 
-            class="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer"
+            class="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer group relative"
             @click="$router.push(`/recipes/${recipe.id}`)"
           >
             <div class="p-4">
-              <h3 class="font-semibold text-gray-900 mb-2">{{ recipe.title }}</h3>
-              <p class="text-sm text-gray-600 line-clamp-2">{{ recipe.description }}</p>
-              <div class="mt-4 flex items-center justify-between">
-                <span class="text-xs text-gray-500">
-                  {{ formatDate(recipe.created_at) }}
-                </span>
-                <router-link 
-                  :to="`/recipes/${recipe.id}/edit`"
-                  class="text-orange-500 hover:text-orange-600 text-sm"
-                  @click.stop
+              <h3 class="font-semibold text-gray-900 mb-2 group-hover:text-orange-500 transition">{{ recipe.title }}</h3>
+              <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ recipe.description }}</p>
+              
+              <!-- Теги -->
+              <div v-if="recipe.tags && recipe.tags.length" class="flex flex-wrap gap-1 mb-3">
+                <span 
+                  v-for="tag in recipe.tags.slice(0, 3)" 
+                  :key="tag"
+                  class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium"
                 >
-                  Редактировать
-                </router-link>
+                  {{ tag }}
+                </span>
+                <span v-if="recipe.tags.length > 3" class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">
+                  +{{ recipe.tags.length - 3 }}
+                </span>
+              </div>
+              
+              <div class="text-xs text-gray-400">
+                {{ formatDate(recipe.created_at) }}
+              </div>
+            </div>
+            
+            <!-- Меню действий -->
+            <div class="absolute top-2 right-2">
+              <div class="relative" @click.stop>
+                <button
+                  @click="toggleMenu(recipe.id)"
+                  class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                  </svg>
+                </button>
+                
+                <!-- Выпадающее меню -->
+                <div 
+                  v-if="activeMenuId === recipe.id"
+                  class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 z-10"
+                >
+                  <router-link
+                    :to="`/recipes/${recipe.id}/edit`"
+                    class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition"
+                    @click.stop
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                    Редактировать
+                  </router-link>
+                  <button
+                    @click="deleteRecipe(recipe.id)"
+                    class="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    Удалить
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -151,20 +204,39 @@
 <script>
 import { useAuthStore } from '../stores/auth'
 import api from '../api'
+import { ref } from 'vue'
 
 export default {
   name: 'Dashboard',
   setup() {
     const auth = useAuthStore()
-    return { auth }
+    const activeMenuId = ref(null)
+    
+    function toggleMenu(id) {
+      activeMenuId.value = activeMenuId.value === id ? null : id
+    }
+    
+    async function deleteRecipe(id) {
+      activeMenuId.value = null
+      if (confirm('Удалить рецепт?')) {
+        try {
+          await api.delete(`/recipes/${id}`)
+          await this.loadDashboard()
+        } catch (error) {
+          console.error('Ошибка удаления:', error)
+        }
+      }
+    }
+    
+    return { auth, activeMenuId, toggleMenu, deleteRecipe }
   },
   data() {
     return {
       recentRecipes: [],
-      categories: [],
+      tags: [],
       stats: {
         totalRecipes: 0,
-        totalCategories: 0,
+        totalTags: 0,
         weeklyRecipes: 0
       },
       loading: true
@@ -173,13 +245,12 @@ export default {
   async mounted() {
     await this.loadDashboard()
     if (this.auth?.isAuthenticated) {
-      await this.loadCategories()
+      await this.loadTags()
     }
     // Fallback: retry once after a short delay in case auth state propagates a bit later
     if (this.auth?.isAuthenticated) {
-      setTimeout(() => this.loadCategories(), 500)
+      setTimeout(() => this.loadTags(), 500)
     }
-    window.addEventListener('category_updated', this.loadCategories)
   },
   methods: {
     async loadDashboard() {
@@ -198,23 +269,20 @@ export default {
         this.loading = false
       }
     },
-  beforeUnmount() {
-      window.removeEventListener('category_updated', this.loadCategories)
-    },
-    async loadCategories() {
+    async loadTags() {
       try {
-        const res = await api.get('/categories')
+        const res = await api.get('/recipes/tags')
         const data = res.data ?? []
         if (Array.isArray(data)) {
-          this.categories = data
+          this.tags = data
         } else if (data?.items) {
-          this.categories = data.items
+          this.tags = data.items
         } else {
-          this.categories = data
+          this.tags = data
         }
       } catch (e) {
-        console.error('Ошибка загрузки категорий на дашборде:', e)
-        this.categories = []
+        console.error('Ошибка загрузки тегов на дашборде:', e)
+        this.tags = []
       }
     },
     formatDate(dateString) {
