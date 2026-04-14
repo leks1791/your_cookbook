@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-orange-50 flex flex-col">
+  <div class="min-h-screen flex flex-col">
     <Header :isAuthenticated="auth.isAuthenticated" @logout="logout" />
     <main class="flex-1 py-8">
       <router-view />
