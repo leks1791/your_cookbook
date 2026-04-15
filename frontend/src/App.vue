@@ -1,57 +1,44 @@
 <template>
-  <div class="min-h-screen flex flex-col">
-    <Header :isAuthenticated="auth.isAuthenticated" @logout="logout" />
-    <main class="flex-1 py-8">
-      <router-view />
-    </main>
-    <Footer />
+  <div class="min-h-screen">
+    <!-- Toast уведомления -->
+    <Toast position="top-right" />
+    
+    <!-- Главная страница - всегда без сайдбара и хедера -->
+    <router-view v-if="route.path === '/'" v-slot="{ Component }">
+      <component :is="Component" :key="route.fullPath" />
+    </router-view>
+    
+    <!-- Public страницы (без сайдбара и хедера) -->
+    <router-view v-else-if="toPublicLayout" v-slot="{ Component }">
+      <component :is="Component" :key="route.fullPath" />
+    </router-view>
+    
+    <!-- Authenticated страницы с MainLayout (сайдбар + хедер + main) -->
+    <MainLayout v-else>
+      <router-view v-slot="{ Component }">
+        <component :is="Component" />
+      </router-view>
+    </MainLayout>
   </div>
 </template>
 
 <script setup>
-import Header from './components/Header.vue'
-import Footer from './components/Footer.vue'
+import MainLayout from './components/MainLayout.vue'
+import Toast from 'primevue/toast'
 import { useAuthStore } from './stores/auth'
-import { onMounted, watch } from 'vue'
-import api from './api'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 const auth = useAuthStore()
-const router = useRouter()
+const route = useRoute()
 
-auth.init()
-
-async function fetchMe() {
-  try {
-    const res = await api.get('/auth/me')
-    const name = res?.data?.username ?? null
-    if (name) {
-      auth.setUsername(name)
-    }
-  } catch {
-    // ignore
-  }
-}
-
-onMounted(async () => {
-  if (auth.isAuthenticated) {
-    await fetchMe()
-  }
+// Public страницы - всегда без сайдбара и MainLayout, независимо от авторизации
+const toPublicLayout = computed(() => {
+  const publicRoutes = ['login', 'register', 'about', 'catalog', 'categories', 'tags', 'recipes-by-tag', 'catalog-detail']
+  const routeName = route.name
+  const routePath = route.path.replace('/', '')
+  return publicRoutes.includes(routeName) || publicRoutes.includes(routePath)
 })
 
-watch(
-  () => auth.isAuthenticated,
-  async (newVal) => {
-    if (newVal) {
-      await fetchMe()
-    } else {
-      auth.setUsername(null)
-    }
-  }
-)
-
-function logout() {
-  auth.logout()
-  router.push('/login')
-}
+auth.init()
 </script>

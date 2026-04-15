@@ -3,77 +3,69 @@
     <label class="block text-gray-700 mb-3 font-medium">Теги</label>
     
     <div class="flex flex-wrap gap-2 mb-3">
-      <span
+      <Tag
         v-for="tag in localTags"
         :key="tag"
-        class="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm"
+        :removable="true"
+        @remove="removeTag(tag)"
       >
         {{ tag }}
-        <button
-          type="button"
-          @click="removeTag(tag)"
-          class="hover:text-orange-900"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-          </svg>
-        </button>
-      </span>
+      </Tag>
       
       <div v-if="!showInput && localTags.length === 0" class="text-gray-400 text-sm italic">Нажмите + чтобы добавить</div>
     </div>
     
     <div v-if="showInput" class="flex gap-2 mb-3">
-      <input
+      <InputText
         ref="inputRef"
         v-model="newTag"
         type="text"
         placeholder="Введите тег и нажмите Enter"
-        class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+        class="flex-1"
         @keyup.enter="addTag"
         @keyup.escape="cancelAdd"
       />
-      <button
+      <Button
         type="button"
         @click="addTag"
-        class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition"
-      >
-        Добавить
-      </button>
-      <button
+        label="Добавить"
+        icon="pi pi-plus"
+        size="small"
+      />
+      <Button
         type="button"
         @click="cancelAdd"
-        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
-      >
-        Отмена
-      </button>
+        label="Отмена"
+        severity="secondary"
+        size="small"
+        outlined
+      />
     </div>
     
-    <button
+    <Button
       v-if="!showInput"
       type="button"
       @click="startAddTag"
-      class="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg font-medium hover:border-orange-400 hover:text-orange-500 transition"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-      </svg>
-      Добавить тег
-    </button>
+      label="Добавить тег"
+      icon="pi pi-plus"
+      outlined
+      severity="secondary"
+    />
     
     <div class="mt-4">
       <p class="text-xs text-gray-500 mb-2">Популярные теги:</p>
       <div class="flex flex-wrap gap-2">
-        <button
+        <Button
           v-for="suggestion in suggestions"
           :key="suggestion"
           type="button"
           @click="addSuggestion(suggestion)"
           :disabled="localTags.includes(suggestion)"
-          class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs hover:bg-orange-100 hover:text-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ suggestion }}
-        </button>
+          :label="suggestion"
+          severity="secondary"
+          size="small"
+          outlined
+        />
       </div>
     </div>
   </div>
@@ -81,6 +73,9 @@
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
+import Tag from 'primevue/tag'
+import InputText from 'primevue/inputtext'
+import Button from 'primevue/button'
 
 const props = defineProps({
   modelValue: {

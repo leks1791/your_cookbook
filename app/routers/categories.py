@@ -1,7 +1,7 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -20,22 +20,20 @@ class CategoryCreate(BaseModel):
 
     @field_validator("color")
     @classmethod
-    def validate_color(cls, v: str) -> str:
-        # Validate HEX color code
-        if not re.match(r"^#[0-9A-Fa-f]{6}$", v):
+    def validate_color(cls, value: str) -> str:
+        if not re.match(r"^#[0-9A-Fa-f]{6}$", value):
             raise ValueError("Color must be a valid HEX color code (e.g., #f97316)")
-        return v.upper()
+        return value.upper()
 
 
 class CategoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     description: str | None
     color: str
     recipe_count: int = 0
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("", response_model=list[CategoryResponse])
@@ -45,7 +43,6 @@ def get_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # DEBUG: temporarily return all categories across users to verify data visibility
     categories = (
         db.query(Category)
         .filter(Category.user_id == current_user.id)
@@ -56,18 +53,17 @@ def get_categories(
         .all()
     )
 
-    # Получаем количество рецептов для каждой категории
     result = []
-    for cat in categories:
+    for category in categories:
         recipe_count = (
-            db.query(Recipe).join(Recipe.categories).filter(Category.id == cat.id)
+            db.query(Recipe).join(Recipe.categories).filter(Category.id == category.id)
         ).count()
         result.append(
             CategoryResponse(
-                id=cat.id,
-                name=cat.name,
-                description=cat.description,
-                color=cat.color,
+                id=category.id,
+                name=category.name,
+                description=category.description,
+                color=category.color,
                 recipe_count=recipe_count,
             )
         )
@@ -81,7 +77,6 @@ def create_category(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Проверка на дубликат
     existing = (
         db.query(Category)
         .filter(Category.name == category.name, Category.user_id == current_user.id)
@@ -91,7 +86,7 @@ def create_category(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Категория с таким названием уже существует",
+            detail="Category with this name already exists",
         )
 
     db_category = Category(
@@ -128,7 +123,7 @@ def get_category(
 
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Категория не найдена"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )
 
     recipe_count = db.query(Category.recipes).filter(Category.id == category.id).count()
@@ -157,10 +152,9 @@ def update_category(
 
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Категория не найдена"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )
 
-    # Проверка на дубликат имени
     existing = (
         db.query(Category)
         .filter(
@@ -174,7 +168,7 @@ def update_category(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Категория с таким названием уже существует",
+            detail="Category with this name already exists",
         )
 
     category.name = category_update.name
@@ -209,10 +203,9 @@ def delete_category(
 
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Категория не найдена"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )
 
-    # Check if category has associated recipes
     recipe_count = (
         db.query(Recipe)
         .join(Recipe.categories)
@@ -223,7 +216,10 @@ def delete_category(
     if recipe_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Невозможно удалить категорию: она связана с {recipe_count} рецептами. Сначала удалите или перенесите рецепты.",
+            detail=(
+                "Cannot delete category because it is linked to recipes. "
+                "Remove recipe links first."
+            ),
         )
 
     db.delete(category)

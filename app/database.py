@@ -1,17 +1,18 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# DATABASE_URL is now sourced from settings for easier configuration/testing
-DATABASE_URL = None
-try:
-    from app.settings import settings as app_settings  # type: ignore
-    DATABASE_URL = app_settings.DATABASE_URL
-except Exception:
-    DATABASE_URL = "sqlite:///./recipes.db"
+from app.settings import settings
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
+def _get_engine_kwargs(database_url: str) -> dict:
+    if database_url.startswith("sqlite"):
+        return {"connect_args": {"check_same_thread": False}}
+    return {}
+
+
+engine = create_engine(settings.database_url, **_get_engine_kwargs(settings.database_url))
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
 
 class Base(DeclarativeBase):
     pass

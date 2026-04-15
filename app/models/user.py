@@ -11,9 +11,13 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="user")
 
     recipes = relationship(
-        "Recipe", back_populates="owner", cascade="all, delete-orphan"
+        "Recipe",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+        foreign_keys="Recipe.user_id",
     )
 
     categories = relationship(

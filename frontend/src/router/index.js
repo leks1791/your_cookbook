@@ -53,6 +53,30 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/catalog',
+      name: 'catalog',
+      component: () => import('../views/Catalog.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/catalog/:id',
+      name: 'catalog-detail',
+      component: () => import('../views/CatalogRecipeDetail.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/categories',
+      name: 'categories',
+      component: () => import('../views/Categories.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/favorites',
+      name: 'favorites',
+      component: () => import('../views/Favorites.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/tags',
       name: 'tags',
       component: () => import('../views/TagsPage.vue'),
@@ -64,19 +88,35 @@ const router = createRouter({
       component: () => import('../views/RecipesByTag.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/about',
+      name: 'about',
+      component: () => import('../views/About.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/admin/moderation',
+      name: 'admin-moderation',
+      component: () => import('../views/AdminModeration.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
   ],
 })
 
-router.beforeEach((to, from) => {
+router.beforeEach((to) => {
   const auth = useAuthStore()
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login' }
   }
 
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'dashboard' }
+  }
+
   if (
     auth.isAuthenticated &&
-    ['home', 'login', 'register'].includes(String(to.name))
+    ['login', 'register'].includes(String(to.name))
   ) {
     return { name: 'dashboard' }
   }

@@ -1,5 +1,5 @@
-from datetime import datetime
 import json
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
@@ -19,19 +19,17 @@ class RecipeStep(BaseModel):
 class RecipeCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: str | None = None
-    ingredients: str  # JSON string or comma-separated
-    steps: str | None = None  # JSON string
+    ingredients: str
+    steps: str | None = None
     tags: list[str] | None = None
     photos: list[str] | None = None
     prep_time: int | None = Field(None, ge=0)
     cook_time: int | None = Field(None, ge=0)
     servings: int | None = Field(None, ge=1)
-    difficulty: str | None = None  # easy, medium, hard
+    difficulty: str | None = None
     cuisine: str | None = None
     notes: str | None = None
-    category_ids: list[int] | None = Field(
-        default=None, description="ID категорий для рецепта"
-    )
+    category_ids: list[int] | None = None
 
 
 class RecipeUpdate(BaseModel):
@@ -47,11 +45,26 @@ class RecipeUpdate(BaseModel):
     difficulty: str | None = None
     cuisine: str | None = None
     notes: str | None = None
-    category_ids: list[int] | None = Field(None, description="ID категорий для рецепта")
+    category_ids: list[int] | None = None
+
+
+class AdminRecipeCreate(RecipeCreate):
+    visibility: str = "public"
+
+
+class ReviewRejectionRequest(BaseModel):
+    reason: str = Field(..., min_length=3, max_length=1000)
+
+
+class RecipeStatusResponse(BaseModel):
+    id: int
+    visibility: str
+    publication_status: str
+    rejection_reason: str | None = None
+    approved_at: datetime | None = None
 
 
 def parse_json_list(value):
-    """Помощник для конвертации JSON строки в список"""
     if value is None:
         return None
     if isinstance(value, list):
@@ -78,10 +91,17 @@ class RecipeResponse(BaseModel):
     difficulty: str | None = None
     cuisine: str | None = None
     notes: str | None = None
+    visibility: str
+    publication_status: str
+    is_admin_recipe: bool
+    approved_by: int | None = None
+    approved_at: datetime | None = None
+    rejection_reason: str | None = None
+    original_recipe_id: int | None = None
     user_id: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    categories: list[dict] | None = None  # Список категорий с id и name
+    categories: list[dict] | None = None
 
     @field_validator("tags", mode="before")
     @classmethod

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import api from '../api'
 
-const API_URL = '/recipes/'
+const API_URL = '/recipes'
 
 export const useRecipeStore = defineStore('recipes', {
   state: () => ({
@@ -15,12 +15,12 @@ export const useRecipeStore = defineStore('recipes', {
       totalPages: 0,
     },
   }),
-  
+
   actions: {
     async fetchRecipes(page = 1, pageSize = 10) {
       this.loading = true
       try {
-        const res = await api.get(API_URL, {
+        const res = await api.get(`${API_URL}/`, {
           params: { page, page_size: pageSize },
         })
         this.recipes = res.data.items
@@ -34,7 +34,7 @@ export const useRecipeStore = defineStore('recipes', {
         this.loading = false
       }
     },
-    
+
     async fetchRecipe(id) {
       this.loading = true
       try {
@@ -45,19 +45,24 @@ export const useRecipeStore = defineStore('recipes', {
         this.loading = false
       }
     },
-    
+
     async createRecipe(data) {
-      const res = await api.post(API_URL, data)
+      const res = await api.post(`${API_URL}/`, data)
       return res.data
     },
-    
+
     async updateRecipe(id, data) {
       const res = await api.put(`${API_URL}/${id}`, data)
       return res.data
     },
-    
+
     async deleteRecipe(id) {
       await api.delete(`${API_URL}/${id}`)
+    },
+
+    async submitForReview(id) {
+      const res = await api.post(`${API_URL}/${id}/submit-for-review`)
+      return res.data
     },
   },
 })

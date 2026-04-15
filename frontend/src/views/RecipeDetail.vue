@@ -1,38 +1,39 @@
 <template>
-  <div v-if="recipe" class="p-4 max-w-4xl mx-auto">
-    <h2 class="text-2xl font-bold mb-2 text-gray-800">{{ recipe.title }}</h2>
-    <p class="mb-4 text-gray-600" v-if="recipe.description">{{ recipe.description }}</p>
-    
-    <!-- Мета информация -->
-    <div class="flex flex-wrap gap-4 mb-6 text-sm text-gray-600">
-      <div v-if="recipe.prep_time" class="flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-        </svg>
-        <span>Подготовка: {{ recipe.prep_time }} мин</span>
+  <div v-if="recipe" class="p-4 max-w-4xl mx-auto space-y-6">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="flex gap-2 mb-3">
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold" :class="statusClass">
+            {{ statusLabel }}
+          </span>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800">{{ recipe.title }}</h2>
+        <p class="mt-2 text-gray-600" v-if="recipe.description">{{ recipe.description }}</p>
       </div>
-      <div v-if="recipe.cook_time" class="flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-        </svg>
-        <span>Приготовление: {{ recipe.cook_time }} мин</span>
-      </div>
-      <div v-if="recipe.servings" class="flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-        </svg>
-        <span>{{ recipe.servings }} порции</span>
-      </div>
-      <div v-if="recipe.difficulty" class="flex items-center gap-1">
-        <span class="font-medium">Сложность:</span>
-        <span :class="difficultyColor">{{ difficultyLabel }}</span>
-      </div>
+
+      <button
+        v-if="recipe.publication_status !== 'pending_review'"
+        class="px-4 py-2 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition"
+        @click="submitForReview"
+      >
+        Отправить на модерацию
+      </button>
     </div>
 
-    <!-- Теги -->
-    <div v-if="recipe.tags && recipe.tags.length" class="flex flex-wrap gap-2 mb-6">
-      <span 
-        v-for="tag in recipe.tags" 
+    <div v-if="recipe.rejection_reason" class="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+      Причина отклонения: {{ recipe.rejection_reason }}
+    </div>
+
+    <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+      <div v-if="recipe.prep_time">Подготовка: {{ recipe.prep_time }} мин</div>
+      <div v-if="recipe.cook_time">Приготовление: {{ recipe.cook_time }} мин</div>
+      <div v-if="recipe.servings">Порции: {{ recipe.servings }}</div>
+      <div v-if="recipe.difficulty">Сложность: {{ recipe.difficulty }}</div>
+    </div>
+
+    <div v-if="recipe.tags && recipe.tags.length" class="flex flex-wrap gap-2">
+      <span
+        v-for="tag in recipe.tags"
         :key="tag"
         class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium"
       >
@@ -40,12 +41,11 @@
       </span>
     </div>
 
-    <!-- Ингредиенты -->
-    <div class="mb-8">
+    <div class="bg-white border border-stone-200 rounded-2xl p-6">
       <h3 class="text-xl font-bold mb-4 text-gray-800">Ингредиенты</h3>
       <ul class="space-y-2">
-        <li 
-          v-for="(ingredient, index) in parsedIngredients" 
+        <li
+          v-for="(ingredient, index) in parsedIngredients"
           :key="index"
           class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
         >
@@ -59,26 +59,16 @@
       </ul>
     </div>
 
-    <!-- Шаги приготовления -->
-    <div class="mb-8">
+    <div v-if="parsedSteps.length" class="bg-white border border-stone-200 rounded-2xl p-6">
       <h3 class="text-xl font-bold mb-4 text-gray-800">Приготовление</h3>
       <ol class="space-y-4">
-        <li 
-          v-for="step in parsedSteps" 
-          :key="step.order"
-          class="flex gap-4"
-        >
-          <span 
-            class="flex-shrink-0 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold"
-          >
+        <li v-for="step in parsedSteps" :key="step.order" class="flex gap-4">
+          <span class="flex-shrink-0 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold">
             {{ step.order }}
           </span>
           <div class="flex-1">
             <p class="text-gray-700">{{ step.description }}</p>
-            <div v-if="step.timer_seconds" class="mt-2 text-sm text-gray-500 flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-              </svg>
+            <div v-if="step.timer_seconds" class="mt-2 text-sm text-gray-500">
               Таймер: {{ formatTimer(step.timer_seconds) }}
             </div>
           </div>
@@ -86,8 +76,7 @@
       </ol>
     </div>
 
-    <!-- Заметки -->
-    <div v-if="recipe.notes" class="mb-8 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg">
+    <div v-if="recipe.notes" class="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg">
       <h3 class="font-bold mb-2 text-gray-800">Заметки</h3>
       <p class="text-gray-700">{{ recipe.notes }}</p>
     </div>
@@ -96,19 +85,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import api from '../api'
+import { useRecipeStore } from '../stores/recipes'
 
 const route = useRoute()
-const id = route.params.id
+const recipeStore = useRecipeStore()
 const recipe = ref(null)
 
 const parsedIngredients = computed(() => {
   if (!recipe.value?.ingredients) return []
   try {
-    const parsed = typeof recipe.value.ingredients === 'string' 
-      ? JSON.parse(recipe.value.ingredients) 
+    const parsed = typeof recipe.value.ingredients === 'string'
+      ? JSON.parse(recipe.value.ingredients)
       : recipe.value.ingredients
     return Array.isArray(parsed) ? parsed : []
   } catch {
@@ -128,25 +117,19 @@ const parsedSteps = computed(() => {
   }
 })
 
-const difficultyLabel = computed(() => {
-  if (!recipe.value?.difficulty) return ''
-  const labels = {
-    easy: 'Легко',
-    medium: 'Средне',
-    hard: 'Сложно'
-  }
-  return labels[recipe.value.difficulty] || recipe.value.difficulty
-})
+const statusLabel = computed(() => ({
+  draft: 'Черновик',
+  pending_review: 'На модерации',
+  approved: 'Одобрен',
+  rejected: 'Отклонён',
+}[recipe.value?.publication_status] || recipe.value?.publication_status || 'Статус'))
 
-const difficultyColor = computed(() => {
-  if (!recipe.value?.difficulty) return ''
-  const colors = {
-    easy: 'text-green-600',
-    medium: 'text-yellow-600',
-    hard: 'text-red-600'
-  }
-  return colors[recipe.value.difficulty] || ''
-})
+const statusClass = computed(() => ({
+  draft: 'bg-stone-100 text-stone-700',
+  pending_review: 'bg-amber-100 text-amber-700',
+  approved: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+}[recipe.value?.publication_status] || 'bg-stone-100 text-stone-700'))
 
 function formatTimer(seconds) {
   if (!seconds) return ''
@@ -158,12 +141,16 @@ function formatTimer(seconds) {
   return `${secs} сек`
 }
 
-onMounted(async () => {
-  try {
-    const res = await api.get(`/recipes/${id}`)
-    recipe.value = res.data
-  } catch {
-    recipe.value = null
-  }
+async function loadRecipe() {
+  recipe.value = await recipeStore.fetchRecipe(route.params.id)
+}
+
+async function submitForReview() {
+  await recipeStore.submitForReview(route.params.id)
+  await loadRecipe()
+}
+
+onMounted(() => {
+  loadRecipe()
 })
 </script>

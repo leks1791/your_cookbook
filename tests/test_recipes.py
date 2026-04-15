@@ -1,5 +1,7 @@
 import pytest
 
+from app.models.user import User
+
 
 def test_create_recipe(client, auth_headers):
     response = client.post(
@@ -18,10 +20,24 @@ def test_create_recipe(client, auth_headers):
     assert data["ingredients"] == "ingredient1, ingredient2"
 
 
+def test_create_recipe_with_unknown_category_returns_400(client, auth_headers):
+    response = client.post(
+        "/recipes/",
+        json={
+            "title": "Test Recipe",
+            "description": "Test description",
+            "ingredients": "ingredient1, ingredient2",
+            "category_ids": [9999],
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 400
+    assert "Categories not found" in response.json()["detail"]
+
+
 def test_get_recipes(client, auth_headers, db, test_user):
-    # Создаём рецепты
     from app.models.recipe import Recipe
-    
+
     recipe1 = Recipe(
         title="Recipe 1",
         description="Desc 1",
@@ -46,7 +62,7 @@ def test_get_recipes(client, auth_headers, db, test_user):
 
 def test_get_recipes_pagination(client, auth_headers, db, test_user):
     from app.models.recipe import Recipe
-    
+
     for i in range(15):
         recipe = Recipe(
             title=f"Recipe {i}",
@@ -69,7 +85,7 @@ def test_get_recipes_pagination(client, auth_headers, db, test_user):
 
 def test_get_recipe_by_id(client, auth_headers, db, test_user):
     from app.models.recipe import Recipe
-    
+
     recipe = Recipe(
         title="Test Recipe",
         description="Desc",
@@ -87,7 +103,7 @@ def test_get_recipe_by_id(client, auth_headers, db, test_user):
 
 def test_update_recipe(client, auth_headers, db, test_user):
     from app.models.recipe import Recipe
-    
+
     recipe = Recipe(
         title="Original Title",
         description="Original Desc",
@@ -114,7 +130,7 @@ def test_update_recipe(client, auth_headers, db, test_user):
 
 def test_delete_recipe(client, auth_headers, db, test_user):
     from app.models.recipe import Recipe
-    
+
     recipe = Recipe(
         title="To Delete",
         description="Desc",
@@ -129,15 +145,13 @@ def test_delete_recipe(client, auth_headers, db, test_user):
     response = client.delete(f"/recipes/{recipe_id}", headers=auth_headers)
     assert response.status_code == 204
 
-    # Проверяем, что удалено
     response = client.get(f"/recipes/{recipe_id}", headers=auth_headers)
     assert response.status_code == 404
 
 
 def test_cannot_access_other_user_recipe(client, auth_headers, db):
     from app.models.recipe import Recipe
-    
-    # Рецепт другого пользователя (без user_id - не принадлежит текущему)
+
     other_user = User(
         username="otheruser",
         email="other@example.com",
@@ -159,7 +173,3 @@ def test_cannot_access_other_user_recipe(client, auth_headers, db):
 
     response = client.get(f"/recipes/{recipe.id}", headers=auth_headers)
     assert response.status_code == 404
-
-
-# Импорт для теста
-from app.models.user import User

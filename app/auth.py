@@ -1,42 +1,27 @@
 import logging
 from datetime import UTC, datetime, timedelta
 
-from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
-from pydantic_settings import BaseSettings
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.settings import settings
 from app.services.user_service import create_user as create_user_service
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-class Settings(BaseSettings):
-    secret_key: str = "fallback-secret-key-do-not-use-in-production"
-    algorithm: str = "HS256"
-    access_token_expire_days: int = 7
-
-    model_config = ConfigDict(env_file=".env")
-
-
-settings = Settings()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
-# Схемы
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
@@ -44,10 +29,10 @@ class UserCreate(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
-        if len(v) < 6:
-            raise ValueError("Пароль должен быть не менее 6 символов")
-        return v
+    def validate_password(cls, value: str) -> str:
+        if len(value) < 6:
+            raise ValueError("Password must be at least 6 characters long")
+        return value
 
 
 class UserLogin(BaseModel):
@@ -65,15 +50,15 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: str
+    role: str
 
 
-# Роутеры регистрации и логина
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        logger.info(f"Registration attempt for user: {user.username} ({user.email})")
+        logger.info("Registration attempt for user=%s email=%s", user.username, user.email)
 
         existing = (
             db.query(User)
@@ -86,23 +71,19 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
                 status_code=400, detail="Email or username already exists"
             )
 
-        # Use service layer to create user (handles hashing and commit)
-        new_user = create_user_service(db, user.username, user.email, user.password)  # type: ignore
-        logger.info(f"User registered successfully: {new_user.id}")
+        new_user = create_user_service(db, user.username, user.email, user.password)
+        logger.info("User registered successfully: id=%s", new_user.id)
         return new_user
     except IntegrityError:
-        # Race condition protection: rollback and friendly message
         db.rollback()
         raise HTTPException(
             status_code=400, detail="Email or username already exists"
         ) from None
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Registration error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}"
-        ) from e
+    except Exception as exc:
+        logger.error("Registration error", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from exc
 
 
 @router.post("/login")
@@ -122,12 +103,10 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({"user_id": db_user.id})
-
     return {"access_token": token}
 
 
 def hash_password(password: str) -> str:
-    # bcrypt has a 72 byte limit, truncate if necessary
     return pwd_context.hash(password[:72])
 
 
@@ -161,7 +140,12 @@ def get_current_user(
     return user
 
 
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
-    # Returns the current authenticated user's basic info
     return current_user

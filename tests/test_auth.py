@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_register_user(client):
     response = client.post(
         "/auth/register",
@@ -14,6 +11,7 @@ def test_register_user(client):
     data = response.json()
     assert data["username"] == "newuser"
     assert data["email"] == "newuser@example.com"
+    assert data["role"] == "user"
     assert "id" in data
 
 
@@ -63,7 +61,6 @@ def test_login_success(client, test_user):
 
 
 def test_login_by_email_field(client, test_user):
-    """Поддержка старого поля email для совместимости с фронтендом."""
     response = client.post(
         "/auth/login",
         json={"email": "test@example.com", "password": "password123"},
@@ -100,12 +97,7 @@ def test_login_nonexistent_user(client):
     assert response.status_code == 401
 
 
-def test_login_nonexistent_user(client):
-    response = client.post(
-        "/auth/login",
-        json={
-            "email_or_username": "nonexistent@example.com",
-            "password": "password123",
-        },
-    )
-    assert response.status_code == 401
+def test_me_returns_role(client, auth_headers):
+    response = client.get("/auth/me", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == "user"

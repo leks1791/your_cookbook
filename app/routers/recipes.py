@@ -1,3 +1,4 @@
+import logging
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,14 +13,15 @@ from app.schemas.recipe import (
     PaginatedRecipeResponse,
     RecipeCreate,
     RecipeResponse,
+    RecipeStatusResponse,
     RecipeUpdate,
 )
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
+logger = logging.getLogger(__name__)
 
 
 def get_user_recipe(recipe_id: int, db: Session, current_user: User) -> Recipe:
-    """Получить рецепт, принадлежащий текущему пользователю."""
     recipe = (
         db.query(Recipe)
         .filter(Recipe.id == recipe_id, Recipe.user_id == current_user.id)
@@ -31,7 +33,6 @@ def get_user_recipe(recipe_id: int, db: Session, current_user: User) -> Recipe:
 
 
 def validate_category_ids(db: Session, category_ids: list[int]) -> list[Category]:
-    """Валидация и получение категорий по ID."""
     if not category_ids:
         return []
 
@@ -44,54 +45,53 @@ def validate_category_ids(db: Session, category_ids: list[int]) -> list[Category
     return categories
 
 
+def reset_recipe_review_state(recipe: Recipe) -> None:
+    if recipe.publication_status == "approved" and not recipe.is_admin_recipe:
+        recipe.visibility = "private"
+        recipe.publication_status = "draft"
+        recipe.approved_by = None
+        recipe.approved_at = None
+        recipe.rejection_reason = None
+
+
 @router.post("/", response_model=RecipeResponse, status_code=201)
 def create_recipe(
     recipe: RecipeCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    category_ids = recipe.category_ids or []
+    categories = validate_category_ids(db, category_ids)
+    recipe_data = recipe.model_dump(exclude={"category_ids"})
+
     try:
-        print(f"Creating recipe for user {current_user.id}")
-        print(f"Recipe data: {recipe.model_dump()}")
-        print(f"Category IDs: {recipe.category_ids}")
-
-        # Валидация категорий
-        category_ids = recipe.category_ids or []
-        print(f"Validating categories: {category_ids}")
-        categories = validate_category_ids(db, category_ids)
-        print(f"Categories found: {[c.id for c in categories]}")
-
-        # Создаём рецепт без categories (они будут добавлены отдельно)
-        recipe_data = recipe.model_dump(exclude={"category_ids"})
-        print(f"Recipe data without categories: {recipe_data}")
-
         db_recipe = Recipe(**recipe_data, user_id=current_user.id)
         db_recipe.categories = categories
-        print(f"Setting categories: {categories}")
-
         db.add(db_recipe)
         db.commit()
         db.refresh(db_recipe)
-        print(f"Recipe created: {db_recipe.id}")
         return db_recipe
-    except Exception as e:
+    except Exception:
         db.rollback()
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Failed to create recipe for user_id=%s", current_user.id)
+        raise
 
 
 @router.get("/", response_model=PaginatedRecipeResponse)
 def get_recipes(
-    page: int = Query(1, ge=1, description="Номер страницы"),
-    page_size: int = Query(10, ge=1, le=100, description="Количество на странице"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(10, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     query = db.query(Recipe).filter(Recipe.user_id == current_user.id)
     total = query.count()
-    recipes = query.offset((page - 1) * page_size).limit(page_size).all()
+    recipes = (
+        query.order_by(Recipe.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return PaginatedRecipeResponse(
         items=recipes,
@@ -120,28 +120,55 @@ def update_recipe(
 ):
     recipe = get_user_recipe(recipe_id, db, current_user)
 
-    # Обновляем базовые поля (исключая category_ids)
-    update_data = updated_recipe.model_dump(
-        exclude_unset=True, exclude={"category_ids"}
-    )
+    update_data = updated_recipe.model_dump(exclude_unset=True, exclude={"category_ids"})
     for field, value in update_data.items():
         setattr(recipe, field, value)
 
-    # Обновляем категории если переданы
+    if update_data:
+        reset_recipe_review_state(recipe)
+
     if "category_ids" in updated_recipe.model_dump(exclude_unset=True):
         category_ids = updated_recipe.category_ids
-        # Если category_ids None или пустой список - очищаем категории
         if category_ids is None or category_ids == []:
             recipe.categories = []
         else:
-            # Валидируем и устанавливаем новые категории
             categories = validate_category_ids(db, category_ids)
             recipe.categories = categories
+        reset_recipe_review_state(recipe)
 
     db.commit()
     db.refresh(recipe)
 
     return recipe
+
+
+@router.post("/{recipe_id}/submit-for-review", response_model=RecipeStatusResponse)
+def submit_recipe_for_review(
+    recipe_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = get_user_recipe(recipe_id, db, current_user)
+
+    if recipe.is_admin_recipe:
+        raise HTTPException(status_code=400, detail="Admin recipes cannot be submitted")
+
+    recipe.visibility = "public"
+    recipe.publication_status = "pending_review"
+    recipe.rejection_reason = None
+    recipe.approved_by = None
+    recipe.approved_at = None
+
+    db.commit()
+    db.refresh(recipe)
+
+    return RecipeStatusResponse(
+        id=recipe.id,
+        visibility=recipe.visibility,
+        publication_status=recipe.publication_status,
+        rejection_reason=recipe.rejection_reason,
+        approved_at=recipe.approved_at,
+    )
 
 
 @router.delete("/{recipe_id}", status_code=204)
